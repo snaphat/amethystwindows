@@ -30,10 +30,10 @@ namespace AmethystWindowsSystray
                 Windows[desktopWindow.GetDesktopMonitor()].CollectionChanged += Windows_CollectionChanged;
             }
 
-            if (FixedFilters.All(s => !desktopWindow.AppName.StartsWith(s)) 
+            if (FixedFilters.All(s => !desktopWindow.AppName.StartsWith(s))
                 && desktopWindow.AppName != String.Empty &&
                 !Windows[desktopWindow.GetDesktopMonitor()].Contains(desktopWindow))
-            { 
+            {
                 if (configurableFilter.Equals(null))
                 {
                     Windows[desktopWindow.GetDesktopMonitor()].Add(desktopWindow);
@@ -130,6 +130,17 @@ namespace AmethystWindowsSystray
             return desktopWindows.FirstOrDefault();
         }
 
+        public DesktopWindow FindWindow(Point point)
+        {
+            List<DesktopWindow> desktopWindows = new List<DesktopWindow>();
+            foreach (var desktopMonitor in Windows)
+            {
+                desktopWindows.AddRange(Windows[new Pair<VirtualDesktop, HMONITOR>(desktopMonitor.Key.Item1, desktopMonitor.Key.Item2)].Where(window =>
+                window.Info.rcWindow.top < point.Y && window.Info.rcWindow.bottom > point.Y && window.Info.rcWindow.left < point.X && window.Info.rcWindow.right > point.X));
+            }
+            return desktopWindows.FirstOrDefault();
+        }
+
         public DesktopWindow GetWindowByHandlers(HWND hWND, HMONITOR hMONITOR, VirtualDesktop desktop)
         {
             return Windows[new Pair<VirtualDesktop, HMONITOR>(desktop, hMONITOR)].FirstOrDefault(window => window.Window == hWND);
@@ -169,6 +180,14 @@ namespace AmethystWindowsSystray
             {
                 User32.SetForegroundWindow(Windows[desktopMonitor][--currentIndex].Window);
             }
+        }
+
+        public void SwapWindows(Pair<VirtualDesktop, HMONITOR> desktopMonitor1, DesktopWindow window1, Pair<VirtualDesktop, HMONITOR> desktopMonitor2, DesktopWindow window2)
+        {
+            int currentIndex1 = Windows[desktopMonitor1].IndexOf(window1);
+            int currentIndex2 = Windows[desktopMonitor2].IndexOf(window2);
+            Windows[desktopMonitor1][currentIndex1] = window2;
+            Windows[desktopMonitor2][currentIndex2] = window1;
         }
 
         public void MoveWindowClockwise(Pair<VirtualDesktop, HMONITOR> desktopMonitor, DesktopWindow window)
@@ -257,7 +276,7 @@ namespace AmethystWindowsSystray
         {
             Console.WriteLine("prev");
             VirtualDesktop nextVirtualDesktop = window.VirtualDesktop.Left;
-            if (nextVirtualDesktop != null) 
+            if (nextVirtualDesktop != null)
             {
                 Console.WriteLine("ci sono");
                 RemoveWindow(window);

@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Vanara.PInvoke;
 using WindowsDesktop;
 
@@ -16,7 +17,7 @@ namespace AmethystWindowsSystray
     class HooksHelper
     {
         public DesktopWindowsManager DesktopWindowsManager { get; set; }
-        
+
 
         public HooksHelper(DesktopWindowsManager desktopWindowsManager)
         {
@@ -39,7 +40,7 @@ namespace AmethystWindowsSystray
         {
             void WinEventHookAll(User32.HWINEVENTHOOK hWinEventHook, uint winEvent, HWND hwnd, int idObject, int idChild, uint idEventThread, uint dwmsEventTime)
             {
-               
+
                 DesktopWindow desktopWindow = new DesktopWindow(hwnd);
                 if (hwnd != HWND.NULL && idObject == User32.ObjectIdentifiers.OBJID_WINDOW && idChild == 0 && desktopWindow.IsRuntimeValuable())
                 {
@@ -62,21 +63,33 @@ namespace AmethystWindowsSystray
                             SystrayContext.Logger.Information($"window minimized/hide");
                             HMONITOR monitorHandle = User32.MonitorFromWindow(hwnd, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
                             DesktopWindow remove = DesktopWindowsManager.GetWindowByHandlers(hwnd, monitorHandle, VirtualDesktop.Current);
-                            if (remove != null)DesktopWindowsManager.RemoveWindow(remove);
+                            if (remove != null) DesktopWindowsManager.RemoveWindow(remove);
                             break;
                         case User32.EventConstants.EVENT_SYSTEM_MOVESIZEEND:
                             SystrayContext.Logger.Information($"window move/size");
-                            VirtualDesktop movedDesktop = VirtualDesktop.FromHwnd(hwnd);
-                            DesktopWindow moved = DesktopWindowsManager.FindWindow(hwnd);
-                            if (moved != null)
+
+                            DesktopWindow movedWindow1 = DesktopWindowsManager.FindWindow(hwnd);
+                            VirtualDesktop movedDesktop1 = VirtualDesktop.FromHwnd(hwnd);
+                            HMONITOR currentMonitor1 = User32.MonitorFromWindow(hwnd, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                            Pair<VirtualDesktop, HMONITOR> movedPair1 = new Pair<VirtualDesktop, HMONITOR>(movedDesktop1, currentMonitor1);
+
+                            DesktopWindow resizedWindow = new DesktopWindow(hwnd);
+                            resizedWindow.GetInfo();
+                            if (resizedWindow.Info.rcWindow.Size.Equals(movedWindow1.Info.rcWindow.Size))
                             {
-                                DesktopWindow newMoved = new DesktopWindow(hwnd);
-                                newMoved.GetInfo();
-                                if (!moved.Equals(newMoved))
-                                {
-                                    DesktopWindowsManager.RepositionWindow(moved, newMoved);
-                                }
+                                // Not resized.
+                                DesktopWindow movedWindow2 = DesktopWindowsManager.FindWindow(Control.MousePosition);
+                                VirtualDesktop movedDesktop2 = VirtualDesktop.FromHwnd(movedWindow2.Window);
+                                HMONITOR currentMonitor2 = User32.MonitorFromWindow(movedWindow2.Window, User32.MonitorFlags.MONITOR_DEFAULTTONEAREST);
+                                Pair<VirtualDesktop, HMONITOR> movedPair2 = new Pair<VirtualDesktop, HMONITOR>(movedDesktop2, currentMonitor2);
+                                DesktopWindowsManager.SwapWindows(movedPair1, movedWindow1, movedPair2, movedWindow2);
+                                DesktopWindowsManager.Draw(movedPair2);
                             }
+                            else
+                            {
+                                // Resized.
+                            }
+                            DesktopWindowsManager.Draw(movedPair1);
                             break;
                         default:
                             break;
@@ -95,7 +108,7 @@ namespace AmethystWindowsSystray
             User32.RegisterHotKey(hWND, 0x11, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x20); //space
             User32.RegisterHotKey(hWND, 0x12, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x0D); //enter
             User32.RegisterHotKey(hWND, 0x13, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x48); //H
-            User32.RegisterHotKey(hWND, 0x14, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x4A); //J 
+            User32.RegisterHotKey(hWND, 0x14, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x4A); //J
             User32.RegisterHotKey(hWND, 0x15, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x4B); //K
             User32.RegisterHotKey(hWND, 0x16, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x4C); //L
             User32.RegisterHotKey(hWND, 0x17, User32.HotKeyModifiers.MOD_SHIFT | User32.HotKeyModifiers.MOD_ALT, 0x5A); //Z
